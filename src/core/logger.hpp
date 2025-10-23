@@ -1,6 +1,8 @@
 #ifndef LOGGER_HPP
 #define LOGGER_HPP
 
+#include "qdatetime.h"
+#include "qlogging.h"
 #include <QDebug>
 #include <QString>
 #include <QDateTime>
@@ -14,6 +16,16 @@ public:
         WARNING,
         ERROR
     };
+
+    // The missing function is here to help
+    template<typename... Args>
+    static void log(debugMode Mode, Args&&... args){
+        QString timestamp = QDateTime::currentDateTime().toString("dd-MM-yyyy HH:mm:ss");
+        QString prefix = getModePrefix(Mode);
+        QDebug debug = qDebug().noquote();
+        debug << timestamp << prefix;
+        (debug << ... << args);
+    }
     // Template untuk debug mode info
     template<typename... Args>
     static void info(Args&&... args){
