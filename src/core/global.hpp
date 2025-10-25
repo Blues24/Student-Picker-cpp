@@ -41,8 +41,8 @@ namespace GlobalConf {
         return getDataPath() + "/" + CONFIG_NAME;
     }
 
-    const int MAX_IMAGE_SIZE = 300; // in kilobytes
-    const int MIN_IMAGE_SIZE = 100; // in kilobytes
+    const int MAX_IMAGE_SIZE_KB = 300; // in kilobytes
+    const int MIN_IMAGE_SIZE_KB = 100; // in kilobytes
 
     // GUI window size when presenting the image
     const int DISPLAY_IMAGE_WIDTH = 300;

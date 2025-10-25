@@ -1,5 +1,5 @@
 #include "XLSXReader.hpp"
-#include "Logger.hpp"
+#include "logger.hpp"
 
 namespace StudentPicker {
 
