@@ -1,5 +1,5 @@
 #include "ImageProcessor.hpp"
-#include "Logger.hpp"
+#include "logger.hpp"
 #include "Global.hpp"
 #include <QBuffer>
 #include <QImageReader>

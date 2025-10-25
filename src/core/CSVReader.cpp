@@ -1,5 +1,5 @@
 #include "CSVReader.hpp"
-#include "Logger.hpp"
+#include "logger.hpp"
 #include <QFile>
 #include <QTextStream>
 
