@@ -52,7 +52,7 @@ public:
     QVector<QVariantMap> getAllClasses();
 
     // Get class ID by name
-    int getClassID_byName(const QString& className);
+    int getClassID(const QString& className);
 
     // Check for existing class
     bool classExists(const QString& className);
@@ -61,13 +61,13 @@ public:
 
     bool updateStudent(const Student& student);
 
-    bool deleteStudentById(const Student& student);
+    bool deleteStudentById(int studentId);
 
     Student getStudentId(int studentId);
 
     QVector<Student> getAllStudents();
 
-    QVector<Student> getStudentsByClassId(int classID);
+    QVector<Student> getStudentsByClassId(int classId);
 
     QVector<Student> getStudentsByClassName(const QString& className);
 
