@@ -21,9 +21,9 @@ find_package(Qt6 REQUIRED COMPONENTS
 # Source files
 set(SOURCES
     src/main.cpp
-    src/core/Global.cpp
-    src/core/Logger.cpp
-    src/core/ConfigManager.cpp
+    src/core/global.cpp
+    src/core/logger.cpp
+    src/core/userPreference.cpp
     src/core/DatabaseManager.cpp
     src/core/CSVReader.cpp
     src/core/XLSXReader.cpp
@@ -34,9 +34,9 @@ set(SOURCES
 
 # Header files
 set(HEADERS
-    src/core/Global.hpp
-    src/core/Logger.hpp
-    src/core/ConfigManager.hpp
+    src/core/global.hpp
+    src/core/logger.hpp
+    src/core/userPreference.hpp
     src/core/DatabaseManager.hpp
     src/core/CSVReader.hpp
     src/core/XLSXReader.hpp

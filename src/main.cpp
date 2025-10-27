@@ -1,11 +1,10 @@
 #include <QApplication>
 #include <QMessageBox>
 #include <exception>
-#include "./src/gui/MainWindow.hpp"
-#include "./src/core/logger.hpp"
-#include "./src/core/global.hpp"
-#include "qapplication.h"
-#include "qmessagebox.h"
+#include "gui/MainWindow.hpp"
+#include "core/logger.hpp"
+#include "core/global.hpp"
+
 
 using namespace StudentPicker;
 

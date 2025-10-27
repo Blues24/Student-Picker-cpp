@@ -5,7 +5,7 @@
 #include "../core/XLSXReader.hpp"
 #include "../core/ImageProcessor.hpp"
 #include "../core/global.hpp"
-#include <QStatusBar>
+
 #include <QMenuBar>
 #include <QMenu>
 #include <QAction>
@@ -14,13 +14,16 @@
 #include <QHeaderView>
 #include <QGroupBox>
 #include <QApplication>
+#include <QStatusBar>
+#include <QCloseEvent>
 
 namespace StudentPicker {
+
+// ==================== CONSTRUCTOR ====================
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent), m_selectedStudentId(-1) {
     
-    // Initialize database
     if (!DatabaseManager::instance().initDb()) {
         QMessageBox::critical(this, "Error", 
             "Failed to initialize database: " + 
@@ -38,12 +41,15 @@ MainWindow::MainWindow(QWidget* parent)
     Logger::info("MainWindow initialized");
 }
 
+// ==================== DESTRUCTOR ====================
+
 MainWindow::~MainWindow() {
     saveWindowState();
 }
 
+// ==================== SETUP UI ====================
+
 void MainWindow::setupUI() {
-    // Central widget
     m_centralWidget = new QWidget(this);
     setCentralWidget(m_centralWidget);
     
@@ -93,12 +99,11 @@ void MainWindow::setupUI() {
     m_tableView->verticalHeader()->setVisible(false);
     m_tableView->setMinimumHeight(300);
     
-    // Column widths
-    m_tableView->setColumnWidth(0, 50);   // ID
-    m_tableView->setColumnWidth(1, 200);  // Name
-    m_tableView->setColumnWidth(2, 150);  // Student ID
-    m_tableView->setColumnWidth(3, 150);  // Class
-    m_tableView->setColumnWidth(4, 100);  // Has Photo
+    m_tableView->setColumnWidth(0, 50);
+    m_tableView->setColumnWidth(1, 200);
+    m_tableView->setColumnWidth(2, 150);
+    m_tableView->setColumnWidth(3, 150);
+    m_tableView->setColumnWidth(4, 100);
     
     connect(m_tableView->selectionModel(), &QItemSelectionModel::selectionChanged,
             this, &MainWindow::onTableSelectionChanged);
@@ -111,7 +116,6 @@ void MainWindow::setupUI() {
     
     m_bottomLayout = new QHBoxLayout();
     
-    // Left side - Photo
     QVBoxLayout* photoLayout = new QVBoxLayout();
     m_photoLabel = new QLabel(this);
     m_photoLabel->setFixedSize(GlobalConf::DISPLAY_IMAGE_WIDTH, GlobalConf::DISPLAY_IMAGE_HEIGHT);
@@ -127,7 +131,6 @@ void MainWindow::setupUI() {
     photoLayout->addWidget(m_uploadPhotoButton);
     photoLayout->addStretch();
     
-    // Right side - Info
     m_infoLayout = new QVBoxLayout();
     m_infoLayout->setSpacing(10);
     
@@ -155,16 +158,16 @@ void MainWindow::setupUI() {
     m_statusLabel = new QLabel("Ready", this);
     statusBar()->addWidget(m_statusLabel);
     
-    // Window settings
     setWindowTitle(GlobalConf::APP_NAME + " v" + GlobalConf::APP_VERSION);
     resize(1000, 800);
 }
+
+// ==================== SETUP MENU BAR ====================
 
 void MainWindow::setupMenuBar() {
     QMenuBar* menuBar = new QMenuBar(this);
     setMenuBar(menuBar);
     
-    // File Menu
     QMenu* fileMenu = menuBar->addMenu("&File");
     
     QAction* importAction = fileMenu->addAction("📥 Import Data");
@@ -175,7 +178,6 @@ void MainWindow::setupMenuBar() {
     QAction* exitAction = fileMenu->addAction("❌ Exit");
     connect(exitAction, &QAction::triggered, this, &QWidget::close);
     
-    // Database Menu
     QMenu* dbMenu = menuBar->addMenu("&Database");
     
     QAction* refreshAction = dbMenu->addAction("🔄 Refresh");
@@ -186,7 +188,6 @@ void MainWindow::setupMenuBar() {
     QAction* clearAction = dbMenu->addAction("🗑️ Clear All Data");
     connect(clearAction, &QAction::triggered, this, &MainWindow::onClearDatabaseClicked);
     
-    // Help Menu
     QMenu* helpMenu = menuBar->addMenu("&Help");
     
     QAction* aboutAction = helpMenu->addAction("ℹ️ About");
@@ -198,8 +199,9 @@ void MainWindow::setupMenuBar() {
     });
 }
 
+// ==================== APPLY STYLES ====================
+
 void MainWindow::applyStyles() {
-    // Zen Light Mode styling
     QString styleSheet = R"(
         QMainWindow {
             background-color: #ffffff;
@@ -289,7 +291,187 @@ void MainWindow::applyStyles() {
     setStyleSheet(styleSheet);
 }
 
-// Slots implementation
+// ==================== HELPER FUNCTIONS ====================
+
+void MainWindow::loadClasses() {
+    m_classComboBox->clear();
+    m_classComboBox->addItem("All Classes", -1);
+    
+    m_classes = DatabaseManager::instance().getAllClasses();
+    
+    for (const QVariantMap& classData : m_classes) {
+        QString className = classData["name"].toString();
+        int classId = classData["id"].toInt();
+        m_classComboBox->addItem(className, classId);
+    }
+    
+    Logger::info("Loaded", m_classes.size(), "classes");
+}
+
+void MainWindow::loadStudents() {
+    QVector<Student> students = DatabaseManager::instance().getAllStudents();
+    m_tableModel->setStudents(students);
+    
+    m_statusLabel->setText(QString("Total: %1 students").arg(students.size()));
+    Logger::info("Loaded", students.size(), "students");
+}
+
+void MainWindow::loadStudentsByClass(const QString& className) {
+    QVector<Student> students;
+    
+    if (className == "All Classes") {
+        students = DatabaseManager::instance().getAllStudents();
+    } else {
+        students = DatabaseManager::instance().getStudentsByClassName(className);
+    }
+    
+    m_tableModel->setStudents(students);
+    
+    m_statusLabel->setText(QString("Showing %1 students from %2")
+                          .arg(students.size())
+                          .arg(className));
+    
+    m_pickRandomButton->setEnabled(!students.isEmpty() && className != "All Classes");
+    
+    Logger::info("Loaded", students.size(), "students from class:", className);
+}
+
+void MainWindow::displaySelectedStudent() {
+    if (m_selectedStudentId == -1) {
+        m_nameLabel->setText("Name: -");
+        m_studentIdLabel->setText("Student ID: -");
+        m_classLabel->setText("Class: -");
+        m_photoLabel->setText("No Photo");
+        m_photoLabel->setPixmap(QPixmap());
+        m_uploadPhotoButton->setEnabled(false);
+        return;
+    }
+    
+    Student student = DatabaseManager::instance().getStudentId(m_selectedStudentId);
+    
+    if (student.id == -1) {
+        Logger::warn("Student not found:", m_selectedStudentId);
+        return;
+    }
+    
+    m_nameLabel->setText("Name: " + student.name);
+    m_studentIdLabel->setText("Student ID: " + student.studentId);
+    m_classLabel->setText("Class: " + student.className);
+    
+    if (student.photoData.isEmpty()) {
+        m_photoLabel->setText("No Photo Available");
+        m_photoLabel->setPixmap(QPixmap());
+    } else {
+        QPixmap pixmap = ImageProcessor::pixmapFromData(
+            student.photoData, 
+            GlobalConf::DISPLAY_IMAGE_WIDTH, 
+            GlobalConf::DISPLAY_IMAGE_HEIGHT
+        );
+        m_photoLabel->setPixmap(pixmap);
+    }
+    
+    m_uploadPhotoButton->setEnabled(true);
+    
+    Logger::info("Displaying student:", student.name);
+}
+
+void MainWindow::importCSV(const QString& filePath) {
+    CSVReader reader;
+    
+    if (!reader.readFile(filePath)) {
+        QMessageBox::critical(this, "Import Error", 
+            "Failed to read CSV file:\n" + reader.getLastError());
+        return;
+    }
+    
+    QVector<QVariantMap> data = reader.getData();
+    QStringList headers = reader.getHeaders();
+    
+    if (!headers.contains("Name") || !headers.contains("StudentID") || !headers.contains("Class")) {
+        QMessageBox::warning(this, "Import Warning",
+            "CSV file must contain columns: Name, StudentID, Class\n\n"
+            "Found columns: " + headers.join(", "));
+        return;
+    }
+    
+    QVector<Student> students;
+    for (const QVariantMap& row : data) {
+        Student student;
+        student.name = row["Name"].toString();
+        student.studentId = row["StudentID"].toString();
+        student.className = row["Class"].toString();
+        student.photoData = QByteArray();
+        
+        students.append(student);
+    }
+    
+    if (DatabaseManager::instance().importStudentsFile(students)) {
+        QMessageBox::information(this, "Import Success",
+            QString("Successfully imported %1 students!").arg(students.size()));
+        
+        loadClasses();
+        loadStudents();
+        
+        UserConfig::instance().setValue(
+            UserConfig::KEY_LAST_IMPORT_PATH, 
+            filePath
+        );
+    } else {
+        QMessageBox::critical(this, "Import Error",
+            "Failed to import students:\n" + 
+            DatabaseManager::instance().getLastError());
+    }
+}
+
+void MainWindow::importXLSX(const QString& filePath) {
+    XLSXReader reader;
+    
+    if (!reader.readFile(filePath)) {
+        QMessageBox::information(this, "XLSX Not Supported", 
+            reader.getLastError());
+        return;
+    }
+}
+
+void MainWindow::saveWindowState() {
+    UserConfig::instance().setValue(
+        UserConfig::KEY_WINDOW_GEOMETRY, 
+        saveGeometry()
+    );
+    UserConfig::instance().setValue(
+        UserConfig::KEY_WINDOW_STATE, 
+        saveState()
+    );
+    
+    Logger::info("Window state saved");
+}
+
+void MainWindow::restoreWindowState() {
+    QByteArray geometry = UserConfig::instance().getValue(
+        UserConfig::KEY_WINDOW_GEOMETRY
+    ).toByteArray();
+    
+    QByteArray state = UserConfig::instance().getValue(
+        UserConfig::KEY_WINDOW_STATE
+    ).toByteArray();
+    
+    if (!geometry.isEmpty()) {
+        restoreGeometry(geometry);
+    }
+    
+    if (!state.isEmpty()) {
+        restoreState(state);
+    }
+    
+    Logger::info("Window state restored");
+}
+
+void MainWindow::closeEvent(QCloseEvent* event) {
+    saveWindowState();
+    QMainWindow::closeEvent(event);
+}
+
+// ==================== SLOTS ====================
 
 void MainWindow::onImportClicked() {
     QString lastPath = UserConfig::instance().getValue(
@@ -339,7 +521,6 @@ void MainWindow::onPickRandomClicked() {
         return;
     }
     
-    // Pick random student
     Student randomStudent = DatabaseManager::instance().getRandomStudentClassName(currentClass);
     
     if (randomStudent.id == -1) {
@@ -348,11 +529,9 @@ void MainWindow::onPickRandomClicked() {
         return;
     }
     
-    // Display with animation-like effect (flash the selection)
     m_selectedStudentId = randomStudent.id;
     displaySelectedStudent();
     
-    // Highlight in table
     QVector<Student> students = m_tableModel->getAllStudents();
     for (int i = 0; i < students.size(); i++) {
         if (students[i].id == randomStudent.id) {
@@ -383,7 +562,6 @@ void MainWindow::onUploadPhotoClicked() {
         return;
     }
     
-    // Load and compress image
     ImageProcessor processor;
     if (!processor.loadFromFile(filePath)) {
         QMessageBox::critical(this, "Error",
@@ -401,7 +579,6 @@ void MainWindow::onUploadPhotoClicked() {
         return;
     }
     
-    // Update student photo in database
     Student student = DatabaseManager::instance().getStudentId(m_selectedStudentId);
     student.photoData = compressedData;
     
@@ -409,9 +586,8 @@ void MainWindow::onUploadPhotoClicked() {
         QMessageBox::information(this, "Success",
             "Photo uploaded successfully!");
         
-        // Refresh display
         displaySelectedStudent();
-        loadStudents(); // Refresh table to update "Has Photo" column
+        loadStudents();
     } else {
         QMessageBox::critical(this, "Error",
             "Failed to upload photo:\n" + 
@@ -461,6 +637,7 @@ void MainWindow::onRefreshClicked() {
 }
 
 void MainWindow::onClassChanged(int index) {
+    Q_UNUSED(index);
     QString className = m_classComboBox->currentText();
     loadStudentsByClass(className);
 }

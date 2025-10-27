@@ -70,7 +70,7 @@ bool DatabaseManager::createTables(){
     QSqlQuery query(m_database);
 
     QString createClassesTables = R"(
-        CREATE TABLEIF NOT EXISTS classes (
+        CREATE TABLE IF NOT EXISTS classes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -133,7 +133,7 @@ QVector<QVariantMap> DatabaseManager::getAllClasses(){
     while(query.next()){
         QVariantMap classData;
         classData["id"] = query.value(0).toInt();
-        classData["name"] = query.value(1).toInt();
+        classData["name"] = query.value(1).toString();
         classes.append(classData);
     }
     

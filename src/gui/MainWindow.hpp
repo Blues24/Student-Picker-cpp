@@ -8,8 +8,8 @@
 #include <QComboBox>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include "StudentTableModel.hpp"
 #include "../core/DatabaseManager.hpp"
+#include "StudentTableModel.hpp"
 
 namespace StudentPicker {
 
